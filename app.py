@@ -29,7 +29,6 @@ def generate_meme(image_path, top_text, bottom_text, output_path, font_path=None
     top_text = top_text.upper()  # Convert to uppercase
     bottom_text = bottom_text.upper()  # Convert to uppercase
     
-    # Load the image
     try:
         image = Image.open(image_path).convert("RGBA")  # Ensure image is in RGBA mode
     except FileNotFoundError:
@@ -41,14 +40,11 @@ def generate_meme(image_path, top_text, bottom_text, output_path, font_path=None
 
     image_width, image_height = image.size
 
-    # Load the font
+    # Set up font
     if font_path is None:
         font_path = os.path.join(FONTS_FOLDER, 'Impact.ttf')  # Use Impact font for memes
     try:
         font = ImageFont.truetype(font_path, initial_font_size)
-    except IOError:
-        print(f"Error: Font file not found at {font_path}. Falling back to default font.")
-        font = ImageFont.load_default()
     except Exception as e:
         print(f"Error loading font: {e}")
         return None
@@ -111,15 +107,19 @@ def generate_meme(image_path, top_text, bottom_text, output_path, font_path=None
         bottom_initial_y = image_height - total_bottom_text_height - 20
         draw_centered_text(draw, bottom_text, initial_y=bottom_initial_y, font=font, image_width=image_width)
 
-    # Save the final image
     try:
+        # Save the final image
         rgb_image = image.convert("RGB")
         rgb_image.save(output_path, format="JPEG")
-    except IOError as e:
+    except Exception as e:
         print(f"Error saving meme: {e}")
         return None
 
     return output_path
+
+
+
+
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
@@ -133,16 +133,11 @@ def home():
             return "Error: No image selected. Please try again."
 
         image_path = os.path.join(STATIC_FOLDER, selected_image)
-        if not os.path.exists(image_path):
-            print(f"Error: Image file not found at {image_path}")
-            return "Error: Image file not found. Please try again."
-
         output_path = os.path.join(OUTPUT_FOLDER, 'generated_meme.jpg')  # Updated output file name
 
         result_path = generate_meme(image_path, top_text, bottom_text, output_path)
         if not result_path:
-            print(f"Debug Info: image_path={image_path}, top_text={top_text}, bottom_text={bottom_text}, output_path={output_path}")
-            return "Error generating meme. Possible issues: missing font, image not found, or insufficient permissions."
+            return "Error generating meme. Please try again."
 
         return send_file(result_path, mimetype='image/jpeg', as_attachment=True)
 
@@ -157,14 +152,108 @@ def home():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Meme Generator</title>
+        <title>$PRAWN Meme Generator</title>
         <style>
-            /* Your CSS code */
+            @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+            body {{
+                font-family: 'Fredoka One', cursive;
+                background: linear-gradient(135deg, #FF7A00, #FF3D3D);
+                color: #fff;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+            }}
+            .container {{
+                background: #fff;
+                color: #333;
+                box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+                border-radius: 15px;
+                padding: 25px;
+                width: 90%;
+                max-width: 600px;
+                text-align: center;
+            }}
+            h1 {{
+                font-size: 32px;
+                color: #FF4500;
+                margin-bottom: 20px;
+            }}
+            label {{
+                font-size: 16px;
+                margin-top: 10px;
+                display: block;
+                color: #555;
+            }}
+            input[type=text] {{
+                width: 100%;
+                padding: 12px;
+                margin-top: 8px;
+                border: 2px solid #FF7A00;
+                border-radius: 8px;
+                font-size: 16px;
+                box-sizing: border-box;
+                outline: none;
+            }}
+            input[type=radio] {{
+                display: none;
+            }}
+            input[type=submit] {{
+                background: linear-gradient(90deg, #FF7A00, #FF4500);
+                color: white;
+                border: none;
+                padding: 12px;
+                font-size: 18px;
+                cursor: pointer;
+                border-radius: 8px;
+                margin-top: 20px;
+            }}
+            footer {{
+                margin-top: 20px;
+                font-size: 14px;
+                color: #777;
+            }}
+            footer a {{
+                color: #FF4500;
+                text-decoration: none;
+                margin: 0 5px;
+                font-weight: bold;
+            }}
+            .images-container {{
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                flex-wrap: wrap;
+            }}
+            .image-label img {{
+                width: 150px;
+                height: 150px;
+                object-fit: cover;
+                border-radius: 10px;
+                cursor: pointer;
+                border: 2px solid transparent;
+                transition: border 0.3s;
+            }}
+            .image-label input:checked + img {{
+                border: 2px solid #FF4500;
+            }}
+            .hidden {{
+                display: none;
+            }}
         </style>
+        <script>
+            function updateTextFields() {{
+                const position = document.querySelector('select[name="text_position"]').value;
+                document.querySelector('#top_text_field').classList.toggle('hidden', position === 'bottom');
+                document.querySelector('#bottom_text_field').classList.toggle('hidden', position === 'top');
+            }}
+        </script>
     </head>
     <body>
         <div class="container">
-            <h1>Create Your Meme</h1>
+            <h1>Create Your Pepe the King Prawn Meme</h1>
             <form method="post">
                 <div class="images-container">
                     {images_html}
@@ -185,10 +274,19 @@ def home():
                 </div>
                 <input type="submit" value="Generate Meme">
             </form>
+            <footer>
+                🦐 $PRAWN on Solana | CA: 6b7NtVRo6jDSUZ75qfhHgpy99XVkSu1kfoTFu2E3pump<br>
+                <a href="https://x.com/PepeKing_Prawn" target="_blank">Twitter</a> | 
+                <a href="https://t.me/PrawnOnSol" target="_blank">Telegram</a> | 
+                <a href="https://www.instagram.com/pepethekingprawn_sol/" target="_blank">Instagram</a> | 
+                <a href="https://prawnonsol.xyz/" target="_blank">Website</a> | 
+                <a href="https://dexscreener.com/solana/YGSV5UKCXz3WLAyfviB7oWHQRQbvm5ETtyFVPfystmh" target="_blank">Dexscreener</a>
+            </footer>
         </div>
     </body>
     </html>
     '''
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
