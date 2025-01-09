@@ -364,7 +364,7 @@ def home():
         </form>
         <footer>
             🦐 $PRAWN on Solana | CA: 6b7NtVRo6jDSUZ75qfhHgpy99XVkSu1kfoTFu2E3pump<br>
-            <a href="https://x.com/PepeKing_Prawn" target="_blank">Twitter</a> | 
+            <a href="https://x.com/PepeKing_Prawn" target="_blank">X</a> | 
             <a href="https://t.me/PrawnOnSol" target="_blank">Telegram</a> | 
             <a href="https://www.instagram.com/pepethekingprawn_sol/" target="_blank">Instagram</a> | 
             <a href="https://prawnsol.com/" target="_blank">Website</a> | 
