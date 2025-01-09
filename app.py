@@ -189,6 +189,8 @@ def home():
         for img in IMAGES
     ])
 
+    
+
     return f'''
     <!doctype html>
     <html lang="en">
