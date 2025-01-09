@@ -34,7 +34,7 @@ def serve_image(filename):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def generate_meme(image_path, top_text, bottom_text, output_path, font_path=None, initial_font_size=150, font_choice='impact'):
+def generate_meme(image_path, top_text, bottom_text, output_path, font_choice='impact', initial_font_size=150):
     top_text = top_text.upper()
     bottom_text = bottom_text.upper()
 
@@ -47,81 +47,104 @@ def generate_meme(image_path, top_text, bottom_text, output_path, font_path=None
         print(f"Error loading image: {e}")
         return None
 
-    # Resize the image to ensure it is large enough to be cropped to 1312x1312
     image_width, image_height = image.size
     target_size = 1312
-
-    # Calculate the scaling factor to make sure the shortest dimension is at least 1312
     scale_factor = max(target_size / image_width, target_size / image_height)
     new_width = int(image_width * scale_factor)
     new_height = int(image_height * scale_factor)
     image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-    # Crop the center of the image to 1312x1312
     left = (new_width - target_size) // 2
     upper = (new_height - target_size) // 2
     right = (new_width + target_size) // 2
     lower = (new_height + target_size) // 2
-
     image = image.crop((left, upper, right, lower))
 
-    # Adjust font size for 'bubblegum.ttf' to make it fit better
-    if font_choice == 'bubblegum':
-        font_size = initial_font_size - 30  # Reduce size for Bubblegum font
-        font_color = (255, 165, 0)  # Orange color
-    else:
-        font_size = initial_font_size
-        font_color = (255, 255, 255)  # White color
+    font_path = os.path.join(FONTS_FOLDER, 'impact.ttf') if font_choice == 'impact' else os.path.join(FONTS_FOLDER, 'bubblegum.ttf')
+    font_color = (255, 165, 0) if font_choice == 'bubblegum' else (255, 255, 255)
 
-    # Load the selected font based on the user's choice
+def get_fit_font(draw, text, image_width, max_width, font_path, initial_font_size):
+    font_size = initial_font_size
     try:
-        if font_choice == 'bubblegum':
-            font_path = os.path.join(FONTS_FOLDER, 'bubblegum.ttf')
-        else:
-            font_path = os.path.join(FONTS_FOLDER, 'Impact.ttf')
         font = ImageFont.truetype(font_path, font_size)
+    except OSError:
+        print(f"Error: Font file at {font_path} could not be opened.")
+        font = ImageFont.load_default()  # Fallback font if the specific font can't be loaded
+        font_size = initial_font_size
+
+    # Calculate text width and reduce font size until it fits
+    text_width = font.getbbox(text)[2]  # Get the width of the text
+    while text_width > max_width:
+        font_size -= 1
+        try:
+            font = ImageFont.truetype(font_path, font_size)
+        except OSError:
+            print(f"Error: Font file at {font_path} could not be opened.")
+            font = ImageFont.load_default()  # Fallback to default font
+        text_width = font.getbbox(text)[2]
+
+    return font
+
+# Helper function to draw centered text
+def draw_centered_text(draw, text, y_position, image_width, font, text_color="white", outline_color="black", border_width=5):
+    # Get the bounding box of the text to calculate its width and height
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    # Calculate the x_position to center the text
+    x_position = (image_width - text_width) // 2
+
+    # Draw the outline (border) by drawing the text multiple times with larger offsets
+    for dx in range(-border_width, border_width + 1):
+        for dy in range(-border_width, border_width + 1):
+            # Skip the main text position to avoid overwriting
+            if dx != 0 or dy != 0:
+                draw.text((x_position + dx, y_position + dy), text, font=font, fill=outline_color)
+
+    # Draw the main text on top in the desired color
+    draw.text((x_position, y_position), text, font=font, fill=text_color)
+
+
+# Main function to generate meme
+def generate_meme(image_path, top_text, bottom_text, output_path, font_choice='impact', initial_font_size=150):
+    # Determine font path based on font_choice
+    font_path = os.path.join(FONTS_FOLDER, f'{font_choice}.ttf')  # Path to font in fonts folder
+    if not os.path.isfile(font_path):
+        print(f"Error: Font file {font_path} does not exist.")
+        return None
+
+    try:
+        image = Image.open(image_path)
     except Exception as e:
-        print(f"Error loading font: {e}")
+        print(f"Error loading image: {e}")
         return None
 
     draw = ImageDraw.Draw(image)
+    image_width, image_height = image.size
 
-    def draw_centered_text(draw, text, initial_y, font, image_width, max_width=0.95, border_width=5, text_color=(255, 255, 255)):
-        max_text_width = image_width * max_width
-        lines = textwrap.wrap(text, width=20)  # Adjust wrap width based on font size
-        y = initial_y
+    # Set default text color
+    text_color = (255, 255, 255)
 
-        for line in lines:
-            # Use getbbox() to calculate text dimensions
-            bbox = font.getbbox(line)  # Returns a tuple (left, top, right, bottom)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-            x = (image_width - text_width) // 2
-
-            # Draw text with border
-            for dx in [-border_width, 0, border_width]:
-                for dy in [-border_width, 0, border_width]:
-                    draw.text((x + dx, y + dy), line, font=font, fill="black")
-
-            # Draw the text
-            draw.text((x, y), line, font=font, fill=text_color)
-            y += text_height + 5  # Move to the next line
-
+    # Draw top text
     if top_text:
-        draw_centered_text(draw, top_text, 10, font, image.width, text_color=font_color)
+        top_font = get_fit_font(draw, top_text, image_width, image_width * 0.95, font_path, initial_font_size)
+        draw_centered_text(draw, top_text, 10, image_width, top_font)
 
+    # Draw bottom text
     if bottom_text:
         wrapped_lines = textwrap.wrap(bottom_text, width=20)
-        total_text_height = sum(font.getbbox(line)[3] - font.getbbox(line)[1] for line in wrapped_lines) + (len(wrapped_lines) - 1) * 5
+        total_text_height = sum(get_fit_font(draw, line, image_width, image_width * 0.95, font_path, initial_font_size).getbbox(line)[3] for line in wrapped_lines)
+        bottom_y = image_height - total_text_height - 20
+        for line in wrapped_lines:
+            bottom_font = get_fit_font(draw, line, image_width, image_width * 0.95, font_path, initial_font_size)
+            draw_centered_text(draw, line, bottom_y, image_width, bottom_font)
+            bottom_y += bottom_font.getbbox(line)[3] - bottom_font.getbbox(line)[1] + 5  # Add space between lines
 
-        # Set initial Y position dynamically so the text fits above the bottom edge
-        bottom_initial_y = image.height - total_text_height - 20  # Add padding from the bottom
-        bottom_initial_y -= 20  # Adjust this value to control the height of the bottom text
 
-        draw_centered_text(draw, bottom_text, bottom_initial_y, font, image.width, text_color=font_color)
 
     image.convert("RGB").save(output_path, "JPEG")
     return output_path
+
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
@@ -165,7 +188,6 @@ def home():
         f'<label class="image-label"><input type="radio" name="image" value="{img}"><img src="/images/{img}" alt="{img}"></label>'
         for img in IMAGES
     ])
-
 
     return f'''
     <!doctype html>
